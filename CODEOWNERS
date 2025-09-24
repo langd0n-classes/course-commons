@@ -1,0 +1,5 @@
+# Example CODEOWNERS. Adjust team/user names to match your org.
+*                                   @langd0n-classes/instructors
+scripts/**                          @langd0n-classes/instructors
+devcontainer/**                     @langd0n-classes/instructors
+tools/**                            @langd0n-classes/instructors

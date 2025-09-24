@@ -1,0 +1,14 @@
+{
+  "title_col": "Title",
+  "type_col": "Type",
+  "due_date_col": "Due Date",
+  "release_date_col": "Release Date",
+  "include_types": [
+    "Assignment",
+    "Assessment",
+    "Lab"
+  ],
+  "default_points": 0,
+  "organization_title": "DS-100 Placeholder Assignments",
+  "cartridge_version": "1.1"
+}
