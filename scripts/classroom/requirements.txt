@@ -1,0 +1,2 @@
+# Requirements for enhanced assignment bootstrapper
+prompt_toolkit>=3.0.0
