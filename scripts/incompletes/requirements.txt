@@ -1,0 +1,2 @@
+# Local-only dependencies for generate_incomplete_form.py
+# Uses system tools: pdflatex (texlive), convert (ImageMagick)
