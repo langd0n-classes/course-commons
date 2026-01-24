@@ -498,6 +498,7 @@ def main():
         info(f"Organization: {org}")
 
         # Fetch existing assignments for context
+        existing_slugs = []
         assignments = fetch_assignments(classroom_id)
         if assignments:
             existing_slugs = [a['slug'] for a in assignments[:10]]
