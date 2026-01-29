@@ -144,8 +144,9 @@ def create_team(org, name):
             warn(f"Couldn't create team '{name}' (continuing): {e.stderr.strip()}")
 
 def set_codespaces_access(org, policy, selected_usernames=None):
-    if policy not in ("all", "selected_users", "disabled"):
-        raise ValueError("policy must be one of: all, selected_users, disabled")
+    valid_policies = ("all_members_and_outside_collaborators", "all_members", "selected_members", "disabled")
+    if policy not in valid_policies:
+        raise ValueError(f"policy must be one of: {', '.join(valid_policies)}")
     cmd = ["gh", "api", "-X", "PUT", f"/orgs/{org}/codespaces/access", "-f", f"visibility={policy}"]
     add_plan("AUTO", f"Set Codespaces access policy to '{policy}'", cmd=" ".join(cmd))
     say("Codespaces access policy", f"Setting policy = {policy}")
@@ -155,17 +156,58 @@ def set_codespaces_access(org, policy, selected_usernames=None):
     except subprocess.CalledProcessError as e:
         warn(f"Could not set Codespaces policy ({e.stderr.strip()})")
 
-    if policy == "selected_users":
+    if policy == "selected_members":
         selected_usernames = selected_usernames or []
         if selected_usernames:
             cmd2 = ["gh", "api", "-X", "POST", f"/orgs/{org}/codespaces/access/users",
                     "-f", f"usernames={','.join(selected_usernames)}"]
-            add_plan("AUTO", f"Add selected users for Codespaces: {', '.join(selected_usernames)}", cmd=" ".join(cmd2))
+            add_plan("AUTO", f"Add selected members for Codespaces: {', '.join(selected_usernames)}", cmd=" ".join(cmd2))
             try:
                 sh(cmd2)
-                ok("Selected users added for Codespaces.")
+                ok("Selected members added for Codespaces.")
             except subprocess.CalledProcessError as e:
-                warn(f"Could not add selected users ({e.stderr.strip()})")
+                warn(f"Could not add selected members ({e.stderr.strip()})")
+
+def set_codespaces_ownership(org):
+    say("Codespaces ownership", "Setting codespaces to be organization-owned")
+    # Try to set via API (may not be available in all GitHub versions)
+    cmd = ["gh", "api", "-X", "PATCH", f"/orgs/{org}/codespaces/default-setup", "-f", "codespace_as_default=false"]
+    add_plan("AUTO", "Set codespaces to organization ownership", cmd=" ".join(cmd))
+    try:
+        sh(cmd)
+        ok("Codespaces set to organization ownership.")
+    except subprocess.CalledProcessError as e:
+        warn(f"Could not set ownership via API ({e.stderr.strip()})")
+        add_plan("MANUAL", "Set Codespaces ownership to organization", url=f"https://github.com/organizations/{org}/settings/codespaces/general")
+        say("Manual step: Set codespaces ownership",
+            "The API may not support this yet. Go to your org settings:")
+        print(f"  1. URL: https://github.com/organizations/{org}/settings/codespaces/general")
+        print("  2. Scroll to 'Codespace ownership'")
+        print("  3. Select 'Organization ownership'")
+        print("  4. Click Save")
+        pause("After setting ownership, press ENTER…")
+        ok("Continuing.")
+
+def set_codespaces_spending_limit(org, amount):
+    say("Codespaces spending limit", f"Setting spending budget to ${amount}")
+    # Try to set spending limit via billing API
+    cmd = ["gh", "api", "-X", "PATCH", f"/orgs/{org}/settings/billing/shared-storage-budget-alert-limit",
+           "-f", f"alert_limit={int(amount * 100)}"]
+    add_plan("AUTO", f"Set Codespaces spending limit to ${amount}", cmd=" ".join(cmd))
+    try:
+        sh(cmd)
+        ok(f"Spending limit set to ${amount}.")
+    except subprocess.CalledProcessError as e:
+        warn(f"Could not set spending limit via API ({e.stderr.strip()})")
+        add_plan("MANUAL", f"Set Codespaces spending budget to ${amount}", url=f"https://github.com/organizations/{org}/settings/billing")
+        say("Manual step: Set spending budget",
+            "The API may not support this endpoint. Go to your org billing settings:")
+        print(f"  1. URL: https://github.com/organizations/{org}/settings/billing")
+        print("  2. Look for 'Codespaces spending limit' or 'GitHub Codespaces' under metered services")
+        print(f"  3. Set the spending limit to ${amount}")
+        print("  4. Click Save")
+        pause("After setting the spending limit, press ENTER…")
+        ok("Continuing.")
 
 def print_plan():
     if not PLAN:
@@ -190,16 +232,23 @@ def sanitize_slug(s: str) -> str:
     return s.strip("-")
 
 def ask_inputs():
-    org = ask("Enter the organization slug you want to use (e.g., bu-ds100-f25)")
+    # Policy mapping: pretty name → GitHub API value
+    POLICY_MAP = {
+        "1": ("Everyone (members & outside collaborators)", "all_members_and_outside_collaborators"),
+        "2": ("Members only", "all_members"),
+        "3": ("Selected members only", "selected_members"),
+        "4": ("Disabled", "disabled"),
+    }
+
+    org = ask("Enter the organization slug you want to use (e.g., bu-cds-ds100-f25)")
     classname = ask('Enter the classroom name you will use in the UI (e.g., "DS-100 (Fall 2025)")')
     say("Codespaces access policy")
-    print("  1) all            (allow all members & outside collaborators)")
-    print("  2) selected_users (only specific usernames)")
-    print("  3) disabled       (no one can create Codespaces)")
-    choice = ask("Choose 1, 2, or 3", default="1", validator=lambda x: x in ("1","2","3"))
-    policy = {"1":"all", "2":"selected_users", "3":"disabled"}[choice]
+    for key, (display, _) in POLICY_MAP.items():
+        print(f"  {key}) {display}")
+    choice = ask("Choose 1, 2, 3, or 4", default="1", validator=lambda x: x in POLICY_MAP)
+    _, policy = POLICY_MAP[choice]
     selected_users = []
-    if policy == "selected_users":
+    if policy == "selected_members":
         users = ask("Enter comma-separated GitHub usernames to allow (or leave blank for none)", default="")
         selected_users = [u.strip() for u in users.split(",") if u.strip()]
     return org, classname, policy, selected_users
@@ -240,6 +289,12 @@ def main():
         warn("Skipping team creation.")
 
     set_codespaces_access(org, policy, selected_usernames=selected_users)
+
+    if yesno("Configure Codespaces ownership and spending limit?", default_yes=True):
+        set_codespaces_ownership(org)
+        set_codespaces_spending_limit(org, 5)
+    else:
+        warn("Skipping Codespaces configuration (you can do it later in org settings).")
 
     print()
     say("Useful links (bookmark these):")
