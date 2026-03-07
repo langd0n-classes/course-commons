@@ -1,0 +1,27 @@
+courses:
+  - slug: ds100
+    name: DS-100 Data Literacy
+    lecture_days: [Tue, Thu]
+    terms:
+      - term: fall_2025
+        start: "2025-09-02"
+        end: "2025-12-10"
+      - term: spring_2026
+        start: "2026-01-20"
+        end: "2026-04-30"
+      - term: fall_2026
+        start: "2026-09-02"
+        end: "2026-12-10"
+      - term: spring_2027
+        start: "2027-01-20"
+        end: "2027-04-30"
+  - slug: ds551
+    name: DS-551 Data Engineering
+    lecture_days: [Tue, Thu]
+    terms:
+      - term: spring_2026
+        start: "2026-01-20"
+        end: "2026-04-30"
+      - term: spring_2027
+        start: "2027-01-20"
+        end: "2027-04-30"
