@@ -68,6 +68,9 @@ course-content/
   lectures/
     lec-01-intro-to-scalable-data-systems/
     lec-02-apis-and-git-workflow/
+  gaies/
+    gaie-08-etl-elt/
+    gaie-11-event-schema/
   hw/
     hw-01-scraping-and-containers/
   labs/
