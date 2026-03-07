@@ -35,10 +35,15 @@ Thursday Assessment → Friday Lab**
 ## Course-specific notes
 
 **DS-100:** GAIEs use TerrierGPT (BU's hosted GenAI tool). Numbered as
-`gaie-##-slug`, e.g., `gaie-01-programming-concepts`.
+`gaie-##-slug`, e.g., `gaie-01-programming-concepts`. One GAIE per module,
+due before the first lecture of each module.
 
-**DS-551:** The GAIE concept applies but the activity type is called differently
-in the schedule. Check `ds551_master_schedule.md` for current terminology.
+**DS-551:** GAIEs use TerrierGPT or equivalent (students may use other tools;
+syllabus notes ~$60 cost for paid tools if needed). Numbered `gaie-##-slug`
+where `##` matches the lecture the GAIE precedes. Not every lecture has a
+GAIE — coverage is selective. GAIE files live in
+`course-content/gaies/gaie-##-slug/`. The G/I/P/A coverage arc is tracked in
+`course-info/term/ds551-topics-tracker.md`.
 
 ## Naming convention
 
