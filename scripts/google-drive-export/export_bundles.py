@@ -15,6 +15,7 @@ from typing import Any
 from drive_client import DriveClient, DriveClientError
 
 GOOGLE_SLIDES_MIME = "application/vnd.google-apps.presentation"
+GOOGLE_FOLDER_MIME = "application/vnd.google-apps.folder"
 EXPORTS = (
     ("application/pdf", ".pdf"),
     ("text/plain", ".txt"),
@@ -71,6 +72,17 @@ def require_valid_args(args: argparse.Namespace) -> None:
     if bool(args.file) == bool(args.folder):
         raise SystemExit("ERROR: provide exactly one of --file or --folder.")
 
+    if args.file and looks_like_folder_target(args.file):
+        raise SystemExit(
+            "ERROR: --file expects a Google Slides presentation URL or ID, but this looks like a Drive folder. "
+            "Use --folder instead."
+        )
+    if args.folder and looks_like_presentation_target(args.folder):
+        raise SystemExit(
+            "ERROR: --folder expects a Drive folder URL or ID, but this looks like a Google Slides presentation. "
+            "Use --file instead."
+        )
+
 
 def normalize_target_id(raw: str) -> str:
     raw = raw.strip()
@@ -84,6 +96,14 @@ def normalize_target_id(raw: str) -> str:
         if match:
             return match.group(1)
     return raw
+
+
+def looks_like_folder_target(raw: str) -> bool:
+    return bool(re.search(r"/drive/folders/", raw))
+
+
+def looks_like_presentation_target(raw: str) -> bool:
+    return bool(re.search(r"/presentation/d/", raw))
 
 
 def slugify(value: str) -> str:
@@ -118,6 +138,10 @@ def resolve_output_dir(label: str, output_dir: str | None) -> Path:
 def gather_targets(client: DriveClient, file_id: str | None, folder_id: str | None) -> tuple[str, str, list[dict[str, Any]]]:
     if file_id:
         meta = client.get_file(file_id)
+        if meta.get("mimeType") == GOOGLE_FOLDER_MIME:
+            raise SystemExit(
+                "ERROR: target is a Drive folder, not a Google Slides presentation. Use --folder instead."
+            )
         if meta.get("mimeType") != GOOGLE_SLIDES_MIME:
             raise SystemExit(
                 f"ERROR: target file is not a Google Slides presentation: {meta.get('name')} ({meta.get('mimeType')})"
@@ -126,6 +150,14 @@ def gather_targets(client: DriveClient, file_id: str | None, folder_id: str | No
 
     assert folder_id is not None
     folder_meta = client.get_file(folder_id)
+    if folder_meta.get("mimeType") == GOOGLE_SLIDES_MIME:
+        raise SystemExit(
+            "ERROR: target is a Google Slides presentation, not a folder. Use --file instead."
+        )
+    if folder_meta.get("mimeType") != GOOGLE_FOLDER_MIME:
+        raise SystemExit(
+            f"ERROR: target folder is not a Google Drive folder: {folder_meta.get('name')} ({folder_meta.get('mimeType')})"
+        )
     items = client.list_child_items(folder_id)
     slides = [item for item in items if item.get("mimeType") == GOOGLE_SLIDES_MIME]
     slides.sort(key=lambda item: item.get("name", ""))
@@ -195,11 +227,6 @@ def main() -> int:
 
     try:
         client = DriveClient()
-    except DriveClientError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-
-    try:
         output_dir = resolve_output_dir(args.label, args.output_dir)
         source_mode, resolved_source_id, targets = gather_targets(
             client,
@@ -217,6 +244,9 @@ def main() -> int:
         )
     except FileExistsError:
         print("ERROR: output directory already exists; choose a different --output-dir.", file=sys.stderr)
+        return 1
+    except DriveClientError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

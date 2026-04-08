@@ -10,6 +10,7 @@ from typing import Any
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
 
 
@@ -35,10 +36,41 @@ class DriveClient:
         credentials = service_account.Credentials.from_service_account_file(
             str(cred_file), scopes=scopes
         )
+        self.service_account_email = credentials.service_account_email
         self.service = build("drive", "v3", credentials=credentials, cache_discovery=False)
 
+    def _raise_api_error(self, exc: HttpError, *, file_id: str | None = None) -> None:
+        status = getattr(exc.resp, "status", None)
+        details = [f"Google Drive API error {status}"] if status else ["Google Drive API error"]
+        if file_id:
+            details.append(f"for ID {file_id}")
+
+        if status == 404:
+            details.append(
+                "The target was not found. This usually means the ID is wrong, the item was deleted, "
+                "or the service account does not have access."
+            )
+            details.append(
+                f"Did you remember to share it with the service account? Share target: {self.service_account_email}."
+            )
+        elif status == 403:
+            details.append("Access was denied. The service account likely lacks permission to read this item.")
+            details.append(
+                f"Did you remember to share it with the service account? Share target: {self.service_account_email}."
+            )
+        elif exc.reason:
+            details.append(str(exc.reason))
+
+        raise DriveClientError(" ".join(details)) from exc
+
+    def _execute(self, request: Any, *, file_id: str | None = None) -> dict[str, Any]:
+        try:
+            return request.execute()
+        except HttpError as exc:
+            self._raise_api_error(exc, file_id=file_id)
+
     def get_file(self, file_id: str) -> dict[str, Any]:
-        return (
+        request = (
             self.service.files()
             .get(
                 fileId=file_id,
@@ -48,8 +80,8 @@ class DriveClient:
                 ),
                 supportsAllDrives=True,
             )
-            .execute()
         )
+        return self._execute(request, file_id=file_id)
 
     def list_child_items(self, folder_id: str) -> list[dict[str, Any]]:
         query = f"'{folder_id}' in parents and trashed = false"
@@ -57,7 +89,7 @@ class DriveClient:
         page_token = None
 
         while True:
-            response = (
+            request = (
                 self.service.files()
                 .list(
                     q=query,
@@ -70,8 +102,8 @@ class DriveClient:
                     corpora="allDrives",
                     pageToken=page_token,
                 )
-                .execute()
             )
+            response = self._execute(request, file_id=folder_id)
             items.extend(response.get("files", []))
             page_token = response.get("nextPageToken")
             if not page_token:
@@ -84,6 +116,9 @@ class DriveClient:
         buf = io.BytesIO()
         downloader = MediaIoBaseDownload(buf, request)
         done = False
-        while not done:
-            _, done = downloader.next_chunk()
+        try:
+            while not done:
+                _, done = downloader.next_chunk()
+        except HttpError as exc:
+            self._raise_api_error(exc, file_id=file_id)
         return buf.getvalue()
