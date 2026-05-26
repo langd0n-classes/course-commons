@@ -2,19 +2,13 @@
 
 ## Purpose
 
-Use this prompt to build a lecture overview for an upcoming ds100 lecture by
+Use this prompt to build a lecture overview for an upcoming lecture by
 consulting semester-scoped source deck exports.
 The output is a completed or partially completed lecture `.md` file in the
-appropriate `lms/` folder.
+appropriate folder for your course structure.
 
-> **Note:** This is an interim process. The canonical cross-course version of
-> this workflow is being designed in
-> [course-commons#2](https://github.com/langd0n-classes/course-commons/issues/2),
-> including a Drive export script and a standardized `delivered-lectures/`
-> directory.
-> In DS-100, however, the semester branch itself is the canonical record of
-> what was delivered.
-> Keep lecture exports in the lecture folder they belong to.
+> **Note:** The semester branch itself is the canonical record of what was
+> delivered. Keep lecture exports in the lecture folder they belong to.
 
 ---
 
