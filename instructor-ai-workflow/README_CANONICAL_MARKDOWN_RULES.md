@@ -2,20 +2,23 @@
 
 **Status: CANONICAL. BINDING. NON-NEGOTIABLE.**
 
-These rules govern all Markdown authored or modified by GenAI agents.
+These rules govern **all Markdown authored or modified by GenAI agents**.
+They exist to optimize for:
+- clean git diffs
+- long-term maintainability
+- human review
+- minimal merge conflicts
 
-They exist to optimize for clean git diffs, long-term maintainability,
-human review, and minimal merge conflicts.
+Style preferences are not optional here; they are operational requirements.
 
 ---
 
-## 1. Line Wrapping
+## 1. Line Wrapping (HARD RULE)
 
-- Wrap prose at 80 characters.
-- Never exceed 90 characters.
+- Wrap prose at **80 characters** per line.
+- Never exceed **90 characters** under any circumstances.
 
 This applies to:
-
 - paragraphs
 - list items
 - blockquotes
@@ -24,33 +27,29 @@ Do NOT rely on editors to reflow text automatically.
 
 ---
 
-## 2. One Sentence Per Line
+## 2. One Sentence Per Line (ABSOLUTE)
 
 - Each sentence MUST start on its own line.
-- A sentence may wrap to multiple lines due to the line-length rule.
+- A sentence may wrap to multiple lines due to the 80-character rule.
 - Do NOT place multiple sentences on the same line.
 
-This exists to keep git diffs readable and intentional.
+This rule exists solely to make git diffs readable and intentional.
 
-Correct:
+Example (correct):
 
-```text
-This is the first sentence.
-This is the second sentence, which may wrap
+This is the first sentence.  
+This is the second sentence, which may wrap  
 to a second line if needed.
-```
 
-Incorrect:
+Example (incorrect):
 
-```text
 This is the first sentence. This is the second sentence on the same line.
-```
 
 ---
 
 ## 3. Paragraph Structure
 
-- Separate paragraphs with exactly one blank line.
+- Separate paragraphs with **exactly one blank line**.
 - Do NOT use multiple blank lines for spacing.
 - Do NOT rely on trailing spaces for formatting.
 
@@ -58,24 +57,22 @@ This is the first sentence. This is the second sentence on the same line.
 
 ## 4. Headings
 
-- Use ATX headings only.
-- Leave one blank line after a heading.
+- Use ATX headings only (`#`, `##`, `###`).
+- Leave **one blank line** after a heading.
 - Do NOT skip heading levels.
-- Keep headings short and declarative.
+- Headings should be short, declarative, and free of punctuation.
 
 ---
 
 ## 5. Lists
 
-### Unordered Lists
-
-- Use `-` only.
-- Leave one space after the dash.
+### Unordered lists
+- Use `-` (dash) only.
+- One space after the dash.
 - Wrap list items using hanging indentation.
 
-### Ordered Lists
-
-- Use `1.` for all items.
+### Ordered lists
+- Use `1.` for all items (let Markdown auto-number).
 - Do NOT manually increment numbers.
 
 ---
@@ -124,10 +121,13 @@ Formatting is a tool, not decoration.
 
 ---
 
-## 11. Markdown Is Not A Typesetting Language
+## 11. Markdown Is Not a Typesetting Language
 
 - Do NOT optimize for rendered appearance.
-- Optimize for diff clarity, semantic structure, and editability.
+- Optimize for:
+  - diff clarity
+  - semantic structure
+  - editability
 
 Rendered formatting is secondary.
 
@@ -136,7 +136,7 @@ Rendered formatting is secondary.
 ## 12. Prohibited Behaviors
 
 - Do NOT reflow existing content unless instructed.
-- Do NOT clean up formatting opportunistically.
+- Do NOT “clean up” formatting opportunistically.
 - Do NOT mix style changes with content changes in the same commit.
 
 ---
@@ -144,10 +144,10 @@ Rendered formatting is secondary.
 ## 13. Failure Mode Reminder
 
 The most common failures are:
-
 - long unwrapped lines
 - multiple sentences per line
 - drive-by formatting changes
 - diff-hostile rewrites
 
-When in doubt, stop and ask.
+When in doubt:
+**STOP AND ASK.**
