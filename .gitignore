@@ -219,3 +219,4 @@ __marimo__/
 .debris/
 .megaignore
 scripts/google-drive-export/output/
+**/.codex
