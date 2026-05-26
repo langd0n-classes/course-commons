@@ -214,3 +214,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local / sync artifacts
+.debris/
+.megaignore
+scripts/google-drive-export/output/
