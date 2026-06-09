@@ -27,6 +27,12 @@ For instructors with a course in a git repo:
   for use in Google Slides
 - `stub-generation-prompt.md` — build a lecture overview from prior
   semester source decks
+- `build-prior-art-map.md` — build a single greppable, topic-major
+  index of prior teaching material across reviewed terms so lecture
+  build agents can reuse the strongest prior teaching move instead of
+  re-searching the file tree. Consumed by grepping a `TOPIC:` anchor,
+  reading that slice, reviewing all term variants, and LIFTing the
+  strongest entry; expects a keyword-enriched topic seed as input.
 
 ### Agent hygiene
 Rules for any AI agent that touches a course repo:
