@@ -95,7 +95,7 @@ class DriveClient:
                     q=query,
                     pageSize=1000,
                     fields=(
-                        "nextPageToken, files(id, name, mimeType, createdTime, modifiedTime, webViewLink)"
+                        "nextPageToken, files(id, name, mimeType, createdTime, modifiedTime, webViewLink, shortcutDetails)"
                     ),
                     supportsAllDrives=True,
                     includeItemsFromAllDrives=True,
@@ -110,6 +110,30 @@ class DriveClient:
                 break
 
         return items
+
+    def resolve_shortcut(self, item: dict[str, Any]) -> dict[str, Any]:
+        """If item is a Drive shortcut, fetch and return the target file metadata.
+
+        Returns the item unchanged if it is not a shortcut.
+        On resolution failure, returns the original item with a '_resolution_error'
+        key describing what went wrong (instead of raising).
+        """
+        SHORTCUT_MIME = "application/vnd.google-apps.shortcut"
+        if item.get("mimeType") != SHORTCUT_MIME:
+            return item
+        target_id = (item.get("shortcutDetails") or {}).get("targetId")
+        if not target_id:
+            return {**item, "_resolution_error": "shortcut has no targetId"}
+        try:
+            target = self.get_file(target_id)
+        except DriveClientError as exc:
+            return {**item, "_resolution_error": str(exc)}
+        except Exception as exc:
+            return {**item, "_resolution_error": f"unexpected error: {exc}"}
+        # Preserve the shortcut's display name if the target has no name
+        if not target.get("name"):
+            target["name"] = item.get("name", "")
+        return target
 
     def export_file_bytes(self, file_id: str, mime_type: str) -> bytes:
         request = self.service.files().export_media(fileId=file_id, mimeType=mime_type)

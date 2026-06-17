@@ -8,6 +8,7 @@ import json
 import re
 import sys
 import tempfile
+import traceback
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
@@ -159,15 +160,56 @@ def gather_targets(client: DriveClient, file_id: str | None, folder_id: str | No
             f"ERROR: target folder is not a Google Drive folder: {folder_meta.get('name')} ({folder_meta.get('mimeType')})"
         )
     items = client.list_child_items(folder_id)
-    slides = [item for item in items if item.get("mimeType") == GOOGLE_SLIDES_MIME]
+    print(f"Found {len(items)} item(s) in folder:")
+    resolved = [client.resolve_shortcut(item) for item in items]
+
+    SHORTCUT_MIME = "application/vnd.google-apps.shortcut"
+    MIME_LABELS = {
+        GOOGLE_SLIDES_MIME: "Google Slides",
+        GOOGLE_FOLDER_MIME: "folder",
+        SHORTCUT_MIME: "shortcut",
+        "application/pdf": "PDF",
+        "application/vnd.google-apps.document": "Google Doc",
+        "application/vnd.google-apps.spreadsheet": "Google Sheet",
+    }
+
+    slides = []
+    for original, item in zip(items, resolved):
+        name = item.get("name") or original.get("name") or "(unnamed)"
+        mime = item.get("mimeType", "unknown")
+        label = MIME_LABELS.get(mime, mime)
+        was_shortcut = original.get("mimeType") == SHORTCUT_MIME
+
+        if item.get("_resolution_error"):
+            prefix = "  ✗"
+            reason = f"shortcut → could not resolve: {item['_resolution_error']}"
+        elif was_shortcut and mime == GOOGLE_SLIDES_MIME:
+            prefix = "  ✓"
+            reason = f"shortcut → {label} → will export"
+            slides.append(item)
+        elif mime == GOOGLE_SLIDES_MIME:
+            prefix = "  ✓"
+            reason = f"{label} → will export"
+            slides.append(item)
+        elif was_shortcut:
+            prefix = "  ✗"
+            reason = f"shortcut → {label} → not a Slides file, skipping"
+        else:
+            prefix = "  ✗"
+            reason = f"{label} → not a Slides file, skipping"
+
+        print(f"{prefix} \"{name}\" — {reason}")
+
     slides.sort(key=lambda item: item.get("name", ""))
     return "folder", folder_meta.get("id", folder_id), slides
 
 
 def export_targets(client: DriveClient, targets: list[dict[str, Any]], output_dir: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
-    for target in targets:
+    total = len(targets)
+    for index, target in enumerate(targets, start=1):
         title = target["name"]
+        print(f"Exporting: {title} ({index}/{total})")
         file_record: dict[str, Any] = {
             "file_id": target["id"],
             "title": title,
@@ -182,6 +224,18 @@ def export_targets(client: DriveClient, targets: list[dict[str, Any]], output_di
             payload = client.export_file_bytes(target["id"], export_mime)
             filename = safe_filename(title, suffix)
             dest = output_dir / filename
+            if dest.exists():
+                stem = Path(filename).stem
+                extension = Path(filename).suffix
+                counter = 2
+                while True:
+                    candidate = f"{stem}_{counter}{extension}"
+                    dest = output_dir / candidate
+                    if not dest.exists():
+                        filename = candidate
+                        print(f'WARNING: duplicate title "{title}" — renamed to "{filename}"')
+                        break
+                    counter += 1
             dest.write_bytes(payload)
             file_record["exports"].append(
                 {
@@ -242,14 +296,15 @@ def main() -> int:
             resolved_source_id=resolved_source_id,
             records=records,
         )
-    except FileExistsError:
-        print("ERROR: output directory already exists; choose a different --output-dir.", file=sys.stderr)
-        return 1
     except DriveClientError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    except FileExistsError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
+        traceback.print_exc()
         return 1
 
     print(f"Wrote bundle to {output_dir}")
