@@ -1,7 +1,10 @@
 # course-commons
 
-Lightweight shared assets for BU CDS courses (scripts and optional devcontainer). Keep it simple:
+Production home for reusable BU CDS course guidance and shared assets.
 
+- **learning-architecture/**: production teaching guidance, including reusable
+  lenses and artifact standards.
+- **instructor-ai-workflow/**: reusable course-production workflows.
 - **scripts/**: reusable tools you copy into a course repo (no submodules).
 - **devcontainer/**: optional environment(s) you can copy when helpful.
 - **tools/**: helpers to sync scripts into a course repo and to set up a root folder.
