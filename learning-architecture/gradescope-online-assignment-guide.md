@@ -15,9 +15,10 @@ Course-local copies should point back to this file and stay in sync.
 ## 1. Assignment Setup
 
 - Type: Online Assignment, not PDF assignment.
-- Submission: one per pair when pair submission is used.
-- Q1 is the names question when partner names are required.
-- Use 10 points and completion grading for the names question.
+- Configure individual or group submission in Gradescope as required.
+- Do not add a names question for identity tracking.
+  Gradescope records the individual student or configured group associated
+  with each submission.
 - Enable whitespace trimming whenever any Short Answer question is
   auto-graded.
 
@@ -89,7 +90,7 @@ The value in parentheses is the exact auto-grade answer.
 Place the answer region inline with no answer in parentheses:
 
 ```text
-Enter both partners' names, separated by a comma. [____]
+Enter the repository URL you checked. [____]
 ```
 
 ### Free Response
@@ -106,12 +107,28 @@ Name one pain point this tool removes.
 
 ## 5. Question Structure
 
-Each question has exactly two fields:
+Write each question block in Gradescope entry order:
 
-- Title field: short display title
-- Problem field: full prompt text including the answer region
+1. Title field: short display title
+1. Points: approved point value
+1. Problem field: full student instructions including the answer region
 
 Do not duplicate the title inside the problem text.
+Do not include a Type field in the build spec.
+Gradescope infers the response type from the answer-region syntax in the
+Problem field.
+
+### Gradescope Markdown and Line Breaks
+
+Problem and Description fields use Gradescope's Markdown dialect.
+Unlike GitHub-flavored Markdown, Gradescope renders physical line breaks in
+pasted text.
+Inside an Assignment Description or Problem field paste block, preserve only
+the line breaks that should appear to students.
+Keep sentences in the same rendered paragraph on the same physical line.
+Do not apply prose wrapping or the one-sentence-per-line rule inside these
+Gradescope Markdown paste blocks.
+Continue to apply normal Markdown authoring rules outside paste blocks.
 
 ---
 
@@ -157,12 +174,35 @@ Use a colon instead of arrows:
 
 ---
 
-## 8. Rubric Bands
+## 8. Rubrics
+
+Place the rubric immediately after the complete question block in the spec.
+Gradescope rubric entry occurs on a separate screen after question creation,
+so this order matches the build workflow.
+
+Rubric descriptions are visible to students when the rubric is applied.
+Write each description as concise student-facing feedback that states what the
+response demonstrated.
+
+Example:
+
+| Score | Student-facing description |
+|-------|----------------------------|
+| 10 | A plausible next step and recognition that no other person must review or approve a personal checkpoint |
+| 6 | An attempt at both parts with an unclear or partly implausible answer |
+| 0 | Missing, copied prompt text, unrelated, or no attempt to answer the situation |
+
+Do not put grader-only interpretation into a rubric description.
+When graders need more detail, add a clearly labeled Grader Notes section after
+the rubric in the build spec.
+Grader Notes remain in the source file and are not pasted into Gradescope.
+
+### Standard Rubric Bands
 
 Standard five-band rubric for Free Response questions:
 
-| Score | Meaning |
-|-------|---------|
+| Score | Student-facing description |
+|-------|----------------------------|
 | 10 | Correct, complete, explicit |
 | 8 | Minor error or format issue |
 | 6 | Right direction but vague or partially wrong |
@@ -171,7 +211,8 @@ Standard five-band rubric for Free Response questions:
 
 Adjust the band labels to fit the specific question.
 
-Always include an answer key or acceptable answers list for grader reference.
+When an answer key or acceptable-answers list is needed, put it in Grader
+Notes rather than the student-visible rubric.
 
 ---
 
@@ -188,13 +229,17 @@ lec-##-<slug>-gradescope.md
 
 The file should contain:
 
-1. Header block with assignment type, total points, and submission rule.
+1. Header block with assignment title, total points, and submission rule.
 1. Assignment description for the Gradescope description field.
-1. One section per question with title, problem field, type, points, rubric,
-   and answer key as needed.
-1. Point summary table for every question and subquestion.
+1. One section per question in Gradescope entry order: title, points, and
+   Problem field.
+1. The student-visible rubric immediately after each Free Response question.
+1. Grader Notes after the rubric only when internal interpretation or an
+   acceptable-answers list is required.
 
 If another file holds the primary teaching materials, keep only a short
 pointer there.
 
 Do not duplicate full question content across files.
+Treat the build spec primarily as a field-ordered copy/paste feed for
+Gradescope.
