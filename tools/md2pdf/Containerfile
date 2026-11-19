@@ -1,6 +1,14 @@
-FROM docker.io/pandoc/core:3.7.0.2-ubuntu AS pandoc
 FROM registry.fedoraproject.org/fedora:44
-RUN dnf install -y texlive-xetex texlive-collection-latexrecommended texlive-collection-fontsrecommended liberation-sans-fonts python3 poppler-utils python3-pillow && dnf clean all
-COPY --from=pandoc /usr/local/bin/pandoc /usr/local/bin/pandoc
-COPY --from=pandoc /usr/lib/x86_64-linux-gnu/liblua5.4.so.0 /usr/lib64/liblua5.4.so.0
+RUN dnf install -y texlive-xetex texlive-collection-latexrecommended texlive-collection-fontsrecommended liberation-sans-fonts python3 curl tar gzip && dnf clean all
+RUN set -eu; \
+    case "$(uname -m)" in \
+      x86_64) arch=amd64; sha=8f8f67fdd540b6519326b0ac49d5c55c5d5d15e43920e80a086e02c8aff83268 ;; \
+      aarch64) arch=arm64; sha=4ef2997ff0fa7f86ada5a217722f4f732293e38518b4442ececce16628bd0e44 ;; \
+      *) echo 'Unsupported Pandoc architecture' >&2; exit 1 ;; \
+    esac; \
+    curl -fLsS "https://github.com/jgm/pandoc/releases/download/3.7.0.2/pandoc-3.7.0.2-linux-${arch}.tar.gz" -o /tmp/pandoc.tar.gz; \
+    echo "$sha  /tmp/pandoc.tar.gz" | sha256sum -c -; \
+    tar -xzf /tmp/pandoc.tar.gz --strip-components=1 -C /usr/local; \
+    rm /tmp/pandoc.tar.gz
+RUN pandoc --version
 WORKDIR /src
