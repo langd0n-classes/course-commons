@@ -1,0 +1,6 @@
+FROM docker.io/pandoc/core:3.7.0.2-ubuntu AS pandoc
+FROM registry.fedoraproject.org/fedora:44
+RUN dnf install -y texlive-xetex texlive-collection-latexrecommended texlive-collection-fontsrecommended liberation-sans-fonts python3 poppler-utils python3-pillow && dnf clean all
+COPY --from=pandoc /usr/local/bin/pandoc /usr/local/bin/pandoc
+COPY --from=pandoc /usr/lib/x86_64-linux-gnu/liblua5.4.so.0 /usr/lib64/liblua5.4.so.0
+WORKDIR /src
