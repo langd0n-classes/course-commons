@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if (( $# < 1 || $# > 2 )); then
+    echo 'Usage: md2pdf INPUT.md [OUTPUT.pdf]' >&2
+    exit 2
+fi
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+fail() { echo "md2pdf: $*" >&2; exit 2; }
+[[ "$1" != *:* && "${2:-}" != *:* ]] || fail 'input and output paths must not contain a colon (:)'
+input=$(realpath -e -- "$1")
+base=$(basename -- "$input")
+output=$(realpath -m -- "${2:-$(dirname -- "$input")/${base%.*}.pdf}")
+[[ "$input" != *:* && "$output" != *:* ]] || fail 'input and output paths must not contain a colon (:)'
+backend=${MD2PDF_PANDOC:-container}
+case "$backend" in
+    container|distrobox) ;;
+    *) echo 'MD2PDF_PANDOC must be container or distrobox' >&2; exit 2 ;;
+esac
+if [[ "$backend" == distrobox && -z "${MD2PDF_DISTROBOX_NAME:-}" ]]; then
+    fail 'MD2PDF_DISTROBOX_NAME is required when MD2PDF_PANDOC=distrobox'
+fi
+container_hash=$(sha256sum "$here/Containerfile")
+image=localhost/md2pdf-pandoc:3.7.0.2-${container_hash%% *}
+if ! podman image exists "$image"; then
+    podman build -t "$image" -f "$here/Containerfile" "$here" >&2
+fi
+if [[ "$backend" == distrobox ]]; then
+    work_root=${XDG_CACHE_HOME:-$HOME/.cache}/md2pdf
+    mkdir -p -- "$work_root"
+else
+    work_root=${TMPDIR:-/var/tmp}
+fi
+work=$(mktemp -d "$work_root/$(date +%F)-md2pdf.XXXXXXXX")
+pandoc_container=
+mermaid_container=
+cleanup() {
+    set +e
+    [[ -z "$mermaid_container" ]] || podman rm -f -t 0 "$mermaid_container" >/dev/null
+    [[ -z "$pandoc_container" ]] || podman rm -f -t 0 "$pandoc_container" >/dev/null
+    python3 -c 'import shutil,sys; shutil.rmtree(sys.argv[1])' "$work"
+}
+trap cleanup EXIT
+# Copy files instead of bind mounting host paths; this also supports remote Podman.
+pandoc_container=$(podman create --network=none "$image" sleep infinity)
+podman start "$pandoc_container" >/dev/null
+podman exec "$pandoc_container" mkdir -p "$(dirname -- "$input")" "$work"
+podman cp "$input" "$pandoc_container:$input"
+podman cp "$here/preprocess.py" "$pandoc_container:/preprocess.py"
+podman exec "$pandoc_container" python3 /preprocess.py "$input" "$work/input.md" "$work"
+podman cp "$pandoc_container:$work/." "$work"
+for mmd in "$work"/mermaid-*.mmd; do
+    [[ -e "$mmd" ]] || continue
+    name=$(basename -- "${mmd%.mmd}")
+    mermaid_container=$(podman create --network=none docker.io/minlag/mermaid-cli:11.4.2 \
+        -i "/data/$name.mmd" -o "/data/$name.png" -s 3 -b white)
+    podman cp "$mmd" "$mermaid_container:/data/$name.mmd"
+    podman start -a "$mermaid_container" >/dev/null
+    podman cp "$mermaid_container:/data/$name.png" "$work/$name.png"
+    podman rm "$mermaid_container" >/dev/null
+    mermaid_container=
+done
+args=(-f markdown+autolink_bare_uris "$work/input.md" -o "$work/output.pdf"
+      --pdf-engine=xelatex -V 'mainfont=Liberation Sans' -V fontsize=11pt
+      -V geometry:margin=1in -V colorlinks=true -V linkcolor=blue
+      -V urlcolor=blue -V 'header-includes=\frenchspacing')
+# Ask Pandoc for local image targets, including reference links and ../ paths.
+podman exec "$pandoc_container" pandoc -f markdown+autolink_bare_uris -t json "$input" > "$work/resources.json"
+python3 "$here/preprocess.py" --resources "$input" "$work/resources.json" > "$work/resources.list"
+while IFS= read -r -d '' resource; do
+    [[ "$resource" != *:* ]] || fail "local image path must not contain a colon (:): $resource"
+    [[ -f "$resource" ]] || fail "local image does not exist: $resource"
+    podman exec "$pandoc_container" mkdir -p "$(dirname -- "$resource")"
+    podman cp "$resource" "$pandoc_container:$resource"
+done < "$work/resources.list"
+if [[ "$backend" == distrobox ]]; then
+    (cd -- "$(dirname -- "$input")"; distrobox enter "$MD2PDF_DISTROBOX_NAME" -- pandoc "${args[@]}")
+fi
+if [[ "$backend" == container ]]; then
+    podman cp "$work/." "$pandoc_container:$work"
+    podman exec -w "$(dirname -- "$input")" "$pandoc_container" pandoc "${args[@]}"
+    podman cp "$pandoc_container:$work/output.pdf" "$work/output.pdf"
+fi
+cp -- "$work/output.pdf" "$output"
+printf '%s\n' "$output"
